@@ -1,0 +1,15 @@
+torch
+torchvision
+torchaudio
+monai
+nibabel
+numpy
+pandas
+scikit-learn
+tqdm
+matplotlib
+seaborn
+scipy
+tensorboard
+simpleitk
+pydicom
