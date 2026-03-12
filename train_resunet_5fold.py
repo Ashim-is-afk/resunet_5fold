@@ -290,6 +290,38 @@ def plot_history(history, out_dir):
     plt.close()
 
 
+def save_history_and_config(history, fold_dir, args):
+    max_len = max(len(v) for v in history.values())
+    padded = {}
+
+    for k, vals in history.items():
+        vals = list(vals)
+        if len(vals) < max_len:
+            vals = vals + [None] * (max_len - len(vals))
+        padded[k] = vals
+
+    pd.DataFrame(padded).to_csv(fold_dir / "training_history.csv", index=False)
+
+    with open(fold_dir / "config.json", "w") as f:
+        json.dump(
+            {
+                "device": str(DEVICE),
+                "epochs": args.epochs,
+                "batch_size": args.batch_size,
+                "lr": args.lr,
+                "weight_decay": args.weight_decay,
+                "val_every": args.val_every,
+                "patience": args.patience,
+                "patch_size": list(args.patch_size),
+                "spacing": list(args.spacing),
+                "num_samples": args.num_samples,
+                "cache_rate": args.cache_rate,
+            },
+            f,
+            indent=2,
+        )
+
+
 def train_fold(args, fold):
     output_dir = Path(args.output_dir)
     fold_dir = output_dir / f"fold_{fold}"
@@ -447,35 +479,7 @@ def train_fold(args, fold):
                     log.info(f"Early stopping fold {fold} at epoch {epoch+1}")
                     break
 
-        max_len = max(len(v) for v in history.values())
-        padded = {}
-        for k, vals in history.items():
-            vals = list(vals)
-            if len(vals) < max_len:
-                vals = vals + [None] * (max_len - len(vals))
-            padded[k] = vals
-
-        pd.DataFrame(padded).to_csv(fold_dir / "training_history.csv", index=False)
-
-        with open(fold_dir / "config.json", "w") as f:
-            json.dump(
-                {
-                    "device": str(DEVICE),
-                    "epochs": args.epochs,
-                    "batch_size": args.batch_size,
-                    "lr": args.lr,
-                    "weight_decay": args.weight_decay,
-                    "val_every": args.val_every,
-                    "patience": args.patience,
-                    "patch_size": list(args.patch_size),
-                    "spacing": list(args.spacing),
-                    "num_samples": args.num_samples,
-                    "cache_rate": args.cache_rate,
-                },
-                f,
-                indent=2,
-            )
-
+    save_history_and_config(history, fold_dir, args)
     plot_history(history, fold_dir / "plots")
 
     if writer:

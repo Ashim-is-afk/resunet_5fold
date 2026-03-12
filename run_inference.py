@@ -34,10 +34,6 @@ log = logging.getLogger(__name__)
 NUM_WORKERS = 0 if sys.platform == "win32" else 4
 
 
-def strip_nii_gz(name: str) -> str:
-    return name[:-7] if name.endswith(".nii.gz") else Path(name).stem
-
-
 def collect_cases(data_root: Path, only_without_mask: bool):
     cases = []
 
@@ -111,7 +107,7 @@ def main(args):
     output_dir.mkdir(parents=True, exist_ok=True)
     pred_dir.mkdir(parents=True, exist_ok=True)
 
-    ckpt = torch.load(checkpoint_path, map_location=DEVICE)
+    ckpt = torch.load(checkpoint_path, map_location=DEVICE, weights_only=True)
     ckpt_config = ckpt.get("config", {})
 
     patch_size = tuple(args.patch_size) if args.patch_size is not None else tuple(
@@ -190,11 +186,11 @@ def main(args):
             dataset_type = str(item["dataset_type"])
             image_path = str(item["image_meta_dict"]["filename_or_obj"])
 
-            post_transforms(item)
+            saved_item = post_transforms(item)
 
-            image_name = Path(image_path).name
-            pred_name = f"{strip_nii_gz(image_name)}_pred.nii.gz"
-            pred_path = pred_dir / pred_name
+            # SaveImaged writes the true output path into pred_meta_dict["filename_or_obj"]
+            pred_meta = saved_item.get("pred_meta_dict", {})
+            saved_path = pred_meta.get("filename_or_obj")
 
             saved_rows.append(
                 {
@@ -202,11 +198,11 @@ def main(args):
                     "patient_id": patient_id,
                     "dataset_type": dataset_type,
                     "image_path": image_path,
-                    "prediction_path": str(pred_path),
+                    "prediction_path": str(saved_path) if saved_path is not None else "",
                 }
             )
 
-            log.info(f"Saved prediction for {patient_id}: {pred_path}")
+            log.info(f"Saved prediction for {patient_id}: {saved_path}")
 
     with open(output_dir / "inference_predictions.json", "w") as f:
         json.dump(saved_rows, f, indent=2)
